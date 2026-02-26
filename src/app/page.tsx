@@ -17,6 +17,7 @@ import {
   FormDescription,
   FormMessage,
 } from "@/components/ui/form";
+import { Footer } from "@/components/Footer";
 
 function parseEnsInput(raw: string): string[] {
   return raw
@@ -113,6 +114,7 @@ export default function Home() {
   }
 
   return (
+    <>
     <div className="flex flex-1 flex-col items-center justify-center px-4">
       <div className="w-full max-w-md space-y-8 text-center">
         <div className="space-y-2">
@@ -182,5 +184,7 @@ export default function Home() {
         </Link>
       </div>
     </div>
+    <Footer />
+    </>
   );
 }

@@ -633,7 +633,7 @@ function GraphPageContent() {
           </p>
         </div>
       ) : (
-        <div className="relative flex-1">
+        <div className="relative h-0 flex-1">
           <ReactFlow
             nodes={nodes}
             edges={edges}
