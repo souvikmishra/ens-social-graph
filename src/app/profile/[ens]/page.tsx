@@ -17,7 +17,8 @@ export default async function ProfilePage({ params }: Props) {
   let profile;
   try {
     profile = await resolveEns(ensName);
-  } catch {
+  } catch (err) {
+    console.error("ENS resolution failed:", err);
     profile = null;
   }
 

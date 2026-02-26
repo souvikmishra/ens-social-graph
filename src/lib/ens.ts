@@ -14,9 +14,11 @@ export type EnsProfile = {
   email: string | null;
 } | null;
 
+const FALLBACK_RPC = "https://ethereum-rpc.publicnode.com";
+
 const client = createPublicClient({
   chain: mainnet,
-  transport: http(process.env.ALCHEMY_RPC_URL),
+  transport: http(process.env.ALCHEMY_RPC_URL || FALLBACK_RPC),
 });
 
 const TEXT_RECORD_KEYS = [
