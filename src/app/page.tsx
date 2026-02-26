@@ -1,11 +1,22 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { IconLoader2 } from "@tabler/icons-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Form,
+  FormField,
+  FormItem,
+  FormControl,
+  FormDescription,
+  FormMessage,
+} from "@/components/ui/form";
 
 function parseEnsInput(raw: string): string[] {
   return raw
@@ -18,27 +29,44 @@ function isValidEnsFormat(name: string): boolean {
   return name.endsWith(".eth") && name.length > 4 && !name.includes(" ");
 }
 
+const formSchema = z.object({
+  ensInput: z.string().refine(
+    (val) => val.trim().length > 0,
+    "Please enter at least one ENS name"
+  ),
+});
+
+type FormValues = z.infer<typeof formSchema>;
 type ValidateResult = { exists: boolean; reason?: string };
 
 export default function Home() {
   const router = useRouter();
-  const [ensInput, setEnsInput] = useState("");
   const [validating, setValidating] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setError(null);
-    const names = parseEnsInput(ensInput);
-    if (names.length === 0) return;
+  const form = useForm<FormValues>({
+    resolver: zodResolver(formSchema),
+    mode: "onSubmit",
+    defaultValues: { ensInput: "" },
+  });
+
+  const ensInputValue = form.watch("ensInput");
+
+  async function onSubmit(values: FormValues) {
+    const names = parseEnsInput(values.ensInput);
+    if (names.length === 0) {
+      form.setError("ensInput", {
+        message: "Please enter at least one ENS name",
+      });
+      return;
+    }
 
     const invalidFormat = names.filter((n) => !isValidEnsFormat(n));
     if (invalidFormat.length > 0) {
-      setError(
-        invalidFormat
+      form.setError("ensInput", {
+        message: invalidFormat
           .map((n) => `"${n}" is not a valid ENS format`)
-          .join(". ")
-      );
+          .join(". "),
+      });
       return;
     }
 
@@ -68,11 +96,12 @@ export default function Home() {
     setValidating(false);
 
     if (failedNames.length > 0) {
-      setError(
-        failedNames
-          .map((n) => `"${n}" doesn't exist on Ethereum`)
-          .join(". ") + ". Double-check the name(s)."
-      );
+      form.setError("ensInput", {
+        message:
+          failedNames
+            .map((n) => `"${n}" doesn't exist on Ethereum`)
+            .join(". ") + ". Double-check the name(s).",
+      });
       return;
     }
 
@@ -95,31 +124,55 @@ export default function Home() {
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-2">
-          <div className="flex gap-2">
-            <Input
-              value={ensInput}
-              onChange={(e) => {
-                setEnsInput(e.target.value);
-                if (error) setError(null);
-              }}
-              placeholder="vitalik.eth or vitalik.eth, balajis.eth"
-              className="flex-1"
-            />
-            <Button type="submit" disabled={validating} className="min-w-[160px]">
-              {validating ? (
-                <IconLoader2 size={16} stroke={1.5} className="animate-spin" />
-              ) : parseEnsInput(ensInput).length >= 2 ? (
-                "Generate Graph"
-              ) : (
-                "View ENS Profile"
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-2">
+            <FormField
+              control={form.control}
+              name="ensInput"
+              render={({ field }) => (
+                <FormItem>
+                  <div className="flex gap-2">
+                    <FormControl>
+                      <Input
+                        placeholder="vitalik.eth or vitalik.eth, balajis.eth"
+                        className="flex-1"
+                        {...field}
+                        onChange={(e) => {
+                          field.onChange(e);
+                          if (form.formState.errors.ensInput) {
+                            form.clearErrors("ensInput");
+                          }
+                        }}
+                      />
+                    </FormControl>
+                    <Button
+                      type="submit"
+                      disabled={validating}
+                      className="min-w-[160px]"
+                    >
+                      {validating ? (
+                        <IconLoader2
+                          size={16}
+                          stroke={1.5}
+                          className="animate-spin"
+                        />
+                      ) : parseEnsInput(ensInputValue).length >= 2 ? (
+                        "Generate Graph"
+                      ) : (
+                        "View ENS Profile"
+                      )}
+                    </Button>
+                  </div>
+                  <FormDescription className="text-left">
+                    Enter a single name to view a profile, or multiple names
+                    separated by commas to generate a social graph.
+                  </FormDescription>
+                  <FormMessage className="text-left" />
+                </FormItem>
               )}
-            </Button>
-          </div>
-          {error && (
-            <p className="text-sm text-destructive text-left">{error}</p>
-          )}
-        </form>
+            />
+          </form>
+        </Form>
 
         <Link
           href="/graph"
