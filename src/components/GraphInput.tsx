@@ -5,23 +5,23 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 type GraphInputProps = {
-  onAddEdge: (fromEns: string, toEns: string) => Promise<void>;
+  onAddNames: (names: string[]) => Promise<void>;
   loading: boolean;
 };
 
-export function GraphInput({ onAddEdge, loading }: GraphInputProps) {
-  const [fromEns, setFromEns] = useState("");
-  const [toEns, setToEns] = useState("");
+export function GraphInput({ onAddNames, loading }: GraphInputProps) {
+  const [input, setInput] = useState("");
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    const from = fromEns.trim();
-    const to = toEns.trim();
-    if (!from || !to) return;
+    const names = input
+      .split(",")
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0);
+    if (names.length === 0) return;
 
-    await onAddEdge(from, to);
-    setFromEns("");
-    setToEns("");
+    await onAddNames(names);
+    setInput("");
   }
 
   return (
@@ -30,18 +30,12 @@ export function GraphInput({ onAddEdge, loading }: GraphInputProps) {
       className="flex flex-col gap-2 sm:flex-row sm:items-end"
     >
       <Input
-        value={fromEns}
-        onChange={(e) => setFromEns(e.target.value)}
-        placeholder="From (e.g. vitalik.eth)"
+        value={input}
+        onChange={(e) => setInput(e.target.value)}
+        placeholder="Add ENS names (e.g. vitalik.eth, balajis.eth)"
         className="flex-1"
       />
-      <Input
-        value={toEns}
-        onChange={(e) => setToEns(e.target.value)}
-        placeholder="To (e.g. balajis.eth)"
-        className="flex-1"
-      />
-      <Button type="submit" disabled={loading || !fromEns.trim() || !toEns.trim()}>
+      <Button type="submit" disabled={loading || !input.trim()}>
         {loading ? "Adding..." : "Add Edge"}
       </Button>
     </form>

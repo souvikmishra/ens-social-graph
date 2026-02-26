@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   ReactFlow,
   useNodesState,
@@ -100,19 +101,25 @@ function DeletableEdge({
 }
 
 export default function GraphPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [avatars, setAvatars] = useState<AvatarMap>({});
   const [relationships, setRelationships] = useState<RelationshipRow[]>([]);
   const [addingEdge, setAddingEdge] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
+  const [extraNodes, setExtraNodes] = useState<string[]>([]);
+  const queryProcessed = useRef(false);
 
   const nodeTypes = useMemo(() => ({ ensNode: EnsNode }), []);
   const edgeTypes = useMemo(() => ({ deletable: DeletableEdge }), []);
 
   async function fetchAvatar(name: string): Promise<string | null> {
     try {
-      const res = await fetch(`/api/ens/avatar?name=${encodeURIComponent(name)}`);
+      const res = await fetch(
+        `/api/ens/avatar?name=${encodeURIComponent(name)}`
+      );
       if (!res.ok) return null;
       const data = await res.json();
       return (data as { avatar: string | null }).avatar;
@@ -121,34 +128,40 @@ export default function GraphPage() {
     }
   }
 
-  async function fetchAvatars(names: string[]) {
+  async function fetchAvatars(names: string[], currentAvatars: AvatarMap) {
     const newAvatars: AvatarMap = {};
     await Promise.allSettled(
       names.map(async (name) => {
-        if (avatars[name] !== undefined) {
-          newAvatars[name] = avatars[name];
+        if (currentAvatars[name] !== undefined) {
+          newAvatars[name] = currentAvatars[name];
         } else {
           newAvatars[name] = await fetchAvatar(name);
         }
       })
     );
-    setAvatars((prev) => ({ ...prev, ...newAvatars }));
-    return { ...avatars, ...newAvatars };
+    const merged = { ...currentAvatars, ...newAvatars };
+    setAvatars(merged);
+    return merged;
   }
 
   const buildGraph = useCallback(
-    (rels: RelationshipRow[], avatarMap: AvatarMap) => {
+    (
+      rels: RelationshipRow[],
+      avatarMap: AvatarMap,
+      floatingNames: string[] = []
+    ) => {
       const uniqueNames = new Set<string>();
       rels.forEach((r) => {
         uniqueNames.add(r.fromEns);
         uniqueNames.add(r.toEns);
       });
+      floatingNames.forEach((n) => uniqueNames.add(n));
 
-      const rawNodes: Node[] = Array.from(uniqueNames).map((name) => ({
+      const rawNodes: Node[] = Array.from(uniqueNames).map((name, i) => ({
         id: name,
         type: "ensNode",
         data: { label: name, avatar: avatarMap[name] ?? null },
-        position: { x: 0, y: 0 },
+        position: { x: (i % 4) * 220, y: Math.floor(i / 4) * 100 },
       }));
 
       const graphEdges: Edge[] = rels.map((r) => ({
@@ -161,7 +174,8 @@ export default function GraphPage() {
         },
       }));
 
-      const laidOutNodes = layoutGraph(rawNodes, graphEdges);
+      const laidOutNodes =
+        graphEdges.length > 0 ? layoutGraph(rawNodes, graphEdges) : rawNodes;
       setNodes(laidOutNodes);
       setEdges(graphEdges);
     },
@@ -169,7 +183,7 @@ export default function GraphPage() {
     []
   );
 
-  async function loadRelationships() {
+  async function loadRelationships(floating: string[] = []) {
     try {
       const res = await fetch("/api/relationships");
       if (!res.ok) throw new Error("Failed to fetch");
@@ -182,9 +196,13 @@ export default function GraphPage() {
         allNames.add(r.fromEns);
         allNames.add(r.toEns);
       });
+      floating.forEach((n) => allNames.add(n));
 
-      const avatarMap = await fetchAvatars(Array.from(allNames));
-      buildGraph(rels, avatarMap);
+      const avatarMap = await fetchAvatars(
+        Array.from(allNames),
+        avatars
+      );
+      buildGraph(rels, avatarMap, floating);
     } catch {
       toast.error("Failed to load relationships");
     } finally {
@@ -193,52 +211,89 @@ export default function GraphPage() {
   }
 
   useEffect(() => {
-    loadRelationships();
+    const namesParam = searchParams.get("names");
+    let seedNames: string[] = [];
+
+    if (namesParam && !queryProcessed.current) {
+      queryProcessed.current = true;
+      seedNames = namesParam
+        .split(",")
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0);
+      if (seedNames.length > 0) {
+        setExtraNodes(seedNames);
+      }
+      router.replace("/graph");
+    }
+
+    loadRelationships(seedNames);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function handleAddEdge(fromEns: string, toEns: string) {
+  function generatePairs(names: string[]): [string, string][] {
+    const pairs: [string, string][] = [];
+    for (let i = 0; i < names.length; i++) {
+      for (let j = i + 1; j < names.length; j++) {
+        const [a, b] = [names[i], names[j]].sort();
+        pairs.push([a, b]);
+      }
+    }
+    return pairs;
+  }
+
+  async function handleAddNames(names: string[]) {
+    if (names.length < 2) {
+      toast.warning("Enter at least 2 names to create a connection");
+      return;
+    }
+
     setAddingEdge(true);
 
-    const optimisticRel: RelationshipRow = {
-      id: `temp-${Date.now()}`,
-      fromEns,
-      toEns,
-      createdAt: new Date().toISOString(),
-    };
-    const prevRelationships = [...relationships];
-    const nextRelationships = [...relationships, optimisticRel];
-    setRelationships(nextRelationships);
-
-    const allNames = new Set<string>();
-    nextRelationships.forEach((r) => {
-      allNames.add(r.fromEns);
-      allNames.add(r.toEns);
-    });
-    const avatarMap = await fetchAvatars(Array.from(allNames));
-    buildGraph(nextRelationships, avatarMap);
+    const pairs = generatePairs(names);
+    let addedCount = 0;
+    let skippedCount = 0;
 
     try {
-      const res = await fetch("/api/relationships", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fromEns, toEns }),
-      });
+      const results = await Promise.allSettled(
+        pairs.map(async ([fromEns, toEns]) => {
+          const res = await fetch("/api/relationships", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ fromEns, toEns }),
+          });
 
-      if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(
-          (errData as { error: string }).error || "Failed to add edge"
-        );
+          if (res.status === 409) {
+            skippedCount++;
+            return "duplicate";
+          }
+
+          if (!res.ok) {
+            const errData = await res.json();
+            throw new Error(
+              (errData as { error: string }).error || "Failed to add edge"
+            );
+          }
+
+          addedCount++;
+          return "added";
+        })
+      );
+
+      const failures = results.filter((r) => r.status === "rejected");
+      if (failures.length > 0) {
+        toast.error(`${failures.length} connection(s) failed to create`);
       }
 
-      toast.success(`Edge added: ${fromEns} → ${toEns}`);
+      if (addedCount === 0 && skippedCount === pairs.length) {
+        toast.info("All connections already exist");
+      } else if (addedCount > 0) {
+        toast.success(`${addedCount} connection(s) added`);
+      }
+
+      setExtraNodes([]);
       await loadRelationships();
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to add edge";
-      toast.error(message);
-      setRelationships(prevRelationships);
-      buildGraph(prevRelationships, avatarMap);
+    } catch {
+      toast.error("Failed to create connections");
     } finally {
       setAddingEdge(false);
     }
@@ -246,17 +301,12 @@ export default function GraphPage() {
 
   async function handleDeleteEdge(fromEns: string, toEns: string) {
     const prevRelationships = [...relationships];
+    const prevExtra = [...extraNodes];
     const nextRelationships = relationships.filter(
       (r) => !(r.fromEns === fromEns && r.toEns === toEns)
     );
     setRelationships(nextRelationships);
-
-    const allNames = new Set<string>();
-    nextRelationships.forEach((r) => {
-      allNames.add(r.fromEns);
-      allNames.add(r.toEns);
-    });
-    buildGraph(nextRelationships, avatars);
+    buildGraph(nextRelationships, avatars, extraNodes);
 
     try {
       const res = await fetch("/api/relationships", {
@@ -273,9 +323,11 @@ export default function GraphPage() {
     } catch {
       toast.error("Failed to delete edge");
       setRelationships(prevRelationships);
-      buildGraph(prevRelationships, avatars);
+      buildGraph(prevRelationships, avatars, prevExtra);
     }
   }
+
+  const hasContent = relationships.length > 0 || extraNodes.length > 0;
 
   if (initialLoading) {
     return (
@@ -288,13 +340,13 @@ export default function GraphPage() {
   return (
     <div className="flex h-[calc(100vh-64px)] flex-col">
       <div className="border-b p-4">
-        <GraphInput onAddEdge={handleAddEdge} loading={addingEdge} />
+        <GraphInput onAddNames={handleAddNames} loading={addingEdge} />
       </div>
 
-      {relationships.length === 0 ? (
+      {!hasContent ? (
         <div className="flex flex-1 items-center justify-center">
           <p className="text-center text-muted-foreground">
-            No connections yet. Add ENS name pairs below to build the graph.
+            No connections yet. Add ENS name pairs above to build the graph.
           </p>
         </div>
       ) : (
