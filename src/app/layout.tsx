@@ -4,6 +4,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
+import { ConsoleEasterEgg } from "@/components/ConsoleEasterEgg";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -36,6 +37,7 @@ export default function RootLayout({
           <main className="flex flex-1 flex-col">{children}</main>
           <Footer />
           <Toaster />
+          <ConsoleEasterEgg />
         </ThemeProvider>
       </body>
     </html>
