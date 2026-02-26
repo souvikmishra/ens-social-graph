@@ -103,7 +103,7 @@ export default function Home() {
                 setEnsInput(e.target.value);
                 if (error) setError(null);
               }}
-              placeholder="One name for profile, multiple for graph (e.g. vitalik.eth, balajis.eth)"
+              placeholder="vitalik.eth or vitalik.eth, balajis.eth"
               className="flex-1"
             />
             <Button type="submit" disabled={validating} className="min-w-[160px]">
