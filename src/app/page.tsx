@@ -84,7 +84,7 @@ export default function Home() {
   }
 
   return (
-    <div className="flex min-h-[calc(100vh-64px)] flex-col items-center justify-center px-4">
+    <div className="flex flex-1 flex-col items-center justify-center px-4">
       <div className="w-full max-w-md space-y-8 text-center">
         <div className="space-y-2">
           <h1 className="text-4xl font-bold tracking-tight">
