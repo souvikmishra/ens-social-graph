@@ -4,15 +4,24 @@ import { memo } from "react";
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/card";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { IconUser } from "@tabler/icons-react";
 
 type EnsNodeData = {
   label: string;
   avatar: string | null;
 };
 
+function getInitials(name: string): string {
+  const base = name.replace(/\.eth$/, "");
+  if (base.length === 0) return "";
+  return base.slice(0, 2).toUpperCase();
+}
+
 function EnsNodeComponent({ data }: NodeProps) {
   const router = useRouter();
   const { label, avatar } = data as EnsNodeData;
+  const initials = getInitials(label as string);
 
   return (
     <Card
@@ -21,17 +30,12 @@ function EnsNodeComponent({ data }: NodeProps) {
     >
       <Handle type="target" position={Position.Left} className="bg-gray-400!" />
       <div className="flex items-center gap-2">
-        {avatar ? (
-          <img
-            src={avatar}
-            alt={label as string}
-            className="h-8 w-8 rounded-full object-cover"
-          />
-        ) : (
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-xs font-bold text-muted-foreground">
-            {(label as string).slice(0, 2).toUpperCase()}
-          </div>
-        )}
+        <Avatar className="h-8 w-8">
+          {avatar && <AvatarImage src={avatar} alt={label as string} />}
+          <AvatarFallback className="text-xs font-bold">
+            {initials || <IconUser size={14} stroke={1.5} />}
+          </AvatarFallback>
+        </Avatar>
         <span className="text-sm font-medium">{label as string}</span>
       </div>
       <Handle

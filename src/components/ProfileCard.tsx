@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { toast } from "sonner";
 import {
   IconWorld,
@@ -19,6 +20,7 @@ import {
   IconCopy,
   IconCheck,
   IconArrowLeft,
+  IconUser,
 } from "@tabler/icons-react";
 
 type EnsProfileData = {
@@ -38,7 +40,8 @@ function truncateAddress(address: string): string {
 }
 
 function getInitials(name: string): string {
-  const base = name.replace(".eth", "");
+  const base = name.replace(/\.eth$/, "");
+  if (base.length === 0) return "";
   return base.slice(0, 2).toUpperCase();
 }
 
@@ -72,21 +75,19 @@ export function ProfileCard({
   ];
 
   const populatedLinks = socialLinks.filter((link) => link.value);
+  const initials = getInitials(ensName);
 
   return (
     <Card className="w-full max-w-lg">
       <CardHeader className="items-center space-y-4">
-        {profile.avatar ? (
-          <img
-            src={profile.avatar}
-            alt={ensName}
-            className="h-24 w-24 rounded-full object-cover"
-          />
-        ) : (
-          <div className="flex h-24 w-24 items-center justify-center rounded-full bg-muted text-2xl font-bold text-muted-foreground">
-            {getInitials(ensName)}
-          </div>
-        )}
+        <Avatar className="h-24 w-24 text-2xl">
+          {profile.avatar && (
+            <AvatarImage src={profile.avatar} alt={ensName} />
+          )}
+          <AvatarFallback className="text-2xl font-bold">
+            {initials || <IconUser size={32} stroke={1.5} />}
+          </AvatarFallback>
+        </Avatar>
         <div className="space-y-1 text-center">
           <h1 className="text-2xl font-bold">{ensName}</h1>
           <div className="flex items-center gap-2">
