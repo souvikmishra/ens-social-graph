@@ -7,9 +7,10 @@ import { Input } from "@/components/ui/input";
 type GraphInputProps = {
   onAddNames: (names: string[]) => Promise<void>;
   loading: boolean;
+  existingNodes: string[];
 };
 
-export function GraphInput({ onAddNames, loading }: GraphInputProps) {
+export function GraphInput({ onAddNames, loading, existingNodes }: GraphInputProps) {
   const [input, setInput] = useState("");
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
@@ -24,6 +25,12 @@ export function GraphInput({ onAddNames, loading }: GraphInputProps) {
     setInput("");
   }
 
+  const totalNodes = existingNodes.length;
+  const placeholder =
+    totalNodes > 0
+      ? "Add ENS names — they'll connect to existing nodes"
+      : "Add ENS names (e.g. vitalik.eth, balajis.eth)";
+
   return (
     <form
       onSubmit={handleSubmit}
@@ -32,7 +39,7 @@ export function GraphInput({ onAddNames, loading }: GraphInputProps) {
       <Input
         value={input}
         onChange={(e) => setInput(e.target.value)}
-        placeholder="Add ENS names (e.g. vitalik.eth, balajis.eth)"
+        placeholder={placeholder}
         className="flex-1"
       />
       <Button type="submit" disabled={loading || !input.trim()}>

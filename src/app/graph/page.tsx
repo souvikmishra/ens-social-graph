@@ -305,15 +305,86 @@ function GraphPageContent() {
     return pairs;
   }
 
+  function getExistingNodeNames(): string[] {
+    const names = new Set<string>();
+    relationships.forEach((r) => {
+      names.add(r.fromEns);
+      names.add(r.toEns);
+    });
+    extraNodes.forEach((n) => names.add(n));
+    return Array.from(names);
+  }
+
   async function handleAddNames(names: string[]) {
-    if (names.length < 2) {
+    const existingNames = getExistingNodeNames();
+
+    const duplicateNames = names.filter((n) => existingNames.includes(n));
+    const newNames = names.filter((n) => !existingNames.includes(n));
+
+    if (duplicateNames.length > 0 && newNames.length === 0 && names.length < 2) {
+      toast.info(`${duplicateNames[0]} is already in the graph`);
+      return;
+    }
+
+    const allNamesForPairing = [...newNames, ...existingNames];
+
+    if (newNames.length === 0 && names.length < 2) {
+      toast.info(`${names[0]} is already in the graph`);
+      return;
+    }
+
+    if (newNames.length === 0 && names.length >= 2) {
+      const pairs = generatePairs(names);
+      if (pairs.length === 0) return;
+      setAddingEdge(true);
+      let addedCount = 0;
+      let skippedCount = 0;
+
+      const results = await Promise.allSettled(
+        pairs.map(async ([fromEns, toEns]) => {
+          const res = await fetch("/api/relationships", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ fromEns, toEns }),
+          });
+          if (res.status === 409) { skippedCount++; return "duplicate"; }
+          if (!res.ok) throw new Error("Failed to add edge");
+          addedCount++;
+          return "added";
+        })
+      );
+      const failures = results.filter((r) => r.status === "rejected");
+      if (failures.length > 0) toast.error(`${failures.length} connection(s) failed`);
+      if (addedCount === 0 && skippedCount === pairs.length) toast.info("All connections already exist");
+      else if (addedCount > 0) toast.success(`${addedCount} connection(s) added`);
+      setExtraNodes([]);
+      await loadRelationships();
+      setAddingEdge(false);
+      return;
+    }
+
+    if (newNames.length === 1 && existingNames.length === 0 && names.length === 1) {
       toast.warning("Enter at least 2 names to create a connection");
       return;
     }
 
     setAddingEdge(true);
 
-    const pairs = generatePairs(names);
+    const pairs: [string, string][] = [];
+    for (const newName of newNames) {
+      for (const existing of existingNames) {
+        const [a, b] = [newName, existing].sort();
+        pairs.push([a, b]);
+      }
+    }
+    const newNamePairs = generatePairs(newNames);
+    pairs.push(...newNamePairs);
+
+    if (pairs.length === 0) {
+      setAddingEdge(false);
+      return;
+    }
+
     let addedCount = 0;
     let skippedCount = 0;
 
@@ -331,13 +402,7 @@ function GraphPageContent() {
             return "duplicate";
           }
 
-          if (!res.ok) {
-            const errData = await res.json();
-            throw new Error(
-              (errData as { error: string }).error || "Failed to add edge"
-            );
-          }
-
+          if (!res.ok) throw new Error("Failed to add edge");
           addedCount++;
           return "added";
         })
@@ -419,7 +484,11 @@ function GraphPageContent() {
           <IconArrowLeft size={18} stroke={1.5} />
         </Button>
         <div className="flex-1">
-          <GraphInput onAddNames={handleAddNames} loading={addingEdge} />
+          <GraphInput
+            onAddNames={handleAddNames}
+            loading={addingEdge}
+            existingNodes={getExistingNodeNames()}
+          />
         </div>
       </div>
 
