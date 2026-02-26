@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, type ReactNode } from 'react';
+import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -151,6 +152,25 @@ export function ProfileCard({
         )}
       </CardContent>
     </Card>
+  );
+}
+
+export function ProfileBackButton() {
+  const router = useRouter();
+
+  function handleBack() {
+    if (window.history.length <= 1) {
+      router.push('/');
+    } else {
+      router.back();
+    }
+  }
+
+  return (
+    <Button variant="ghost" size="sm" onClick={handleBack}>
+      <IconArrowLeft size={18} stroke={1.5} />
+      Back
+    </Button>
   );
 }
 

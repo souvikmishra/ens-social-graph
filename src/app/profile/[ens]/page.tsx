@@ -1,5 +1,9 @@
 import { resolveEns } from "@/lib/ens";
-import { ProfileCard, ProfileNotFound } from "@/components/ProfileCard";
+import {
+  ProfileCard,
+  ProfileNotFound,
+  ProfileBackButton,
+} from "@/components/ProfileCard";
 
 type Props = {
   params: Promise<{ ens: string }>;
@@ -27,8 +31,13 @@ export default async function ProfilePage({ params }: Props) {
   }
 
   return (
-    <div className="flex min-h-[80vh] items-center justify-center px-4 py-8">
-      <ProfileCard ensName={ensName} profile={profile} />
+    <div className="flex flex-1 items-center justify-center px-4 py-8">
+      <div className="w-full max-w-lg">
+        <div className="mb-2">
+          <ProfileBackButton />
+        </div>
+        <ProfileCard ensName={ensName} profile={profile} />
+      </div>
     </div>
   );
 }
