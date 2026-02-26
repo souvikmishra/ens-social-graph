@@ -233,23 +233,64 @@ function GraphPageContent() {
     }
   }
 
+  async function seedFromQueryParam(names: string[]) {
+    if (names.length < 2) {
+      await loadRelationships(names);
+      return;
+    }
+
+    const pairs = generatePairs(names);
+    let addedCount = 0;
+
+    const results = await Promise.allSettled(
+      pairs.map(async ([fromEns, toEns]) => {
+        const res = await fetch("/api/relationships", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ fromEns, toEns }),
+        });
+        if (res.status === 409) return "duplicate";
+        if (!res.ok) throw new Error("Failed to create edge");
+        addedCount++;
+        return "added";
+      })
+    );
+
+    const failures = results.filter((r) => r.status === "rejected");
+    if (failures.length > 0) {
+      toast.error(
+        `${failures.length} connection(s) failed to create. The rest were saved.`
+      );
+    }
+    if (addedCount > 0) {
+      toast.success(`${addedCount} connection(s) created`);
+    }
+
+    setExtraNodes([]);
+    await loadRelationships();
+  }
+
   useEffect(() => {
     const namesParam = searchParams.get("names");
-    let seedNames: string[] = [];
 
     if (namesParam && !queryProcessed.current) {
       queryProcessed.current = true;
-      seedNames = namesParam
+      const seedNames = namesParam
         .split(",")
         .map((s) => s.trim())
         .filter((s) => s.length > 0);
+
+      router.replace("/graph");
+
       if (seedNames.length > 0) {
         setExtraNodes(seedNames);
+        seedFromQueryParam(seedNames);
+      } else {
+        loadRelationships();
       }
-      router.replace("/graph");
+    } else {
+      loadRelationships();
     }
-
-    loadRelationships(seedNames);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
