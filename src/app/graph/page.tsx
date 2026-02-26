@@ -1,6 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { IconArrowLeft, IconX } from "@tabler/icons-react";
 import {
@@ -103,6 +110,20 @@ function DeletableEdge({
 }
 
 export default function GraphPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-[80vh] items-center justify-center">
+          <p className="text-muted-foreground">Loading graph...</p>
+        </div>
+      }
+    >
+      <GraphPageContent />
+    </Suspense>
+  );
+}
+
+function GraphPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
