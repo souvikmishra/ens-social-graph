@@ -9,7 +9,12 @@ import {
   useState,
 } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { IconArrowLeft, IconX } from "@tabler/icons-react";
+import {
+  IconArrowLeft,
+  IconX,
+  IconDeviceFloppy,
+  IconLoader2,
+} from "@tabler/icons-react";
 import {
   ReactFlow,
   useNodesState,
@@ -25,6 +30,16 @@ import "@xyflow/react/dist/style.css";
 import dagre from "dagre";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { EnsNode } from "@/components/EnsNode";
 import { GraphInput } from "@/components/GraphInput";
 
@@ -39,6 +54,20 @@ type AvatarMap = Record<string, string | null>;
 
 const NODE_WIDTH = 180;
 const NODE_HEIGHT = 50;
+
+function relKey(r: { fromEns: string; toEns: string }): string {
+  const [a, b] = [r.fromEns, r.toEns].sort();
+  return `${a}:${b}`;
+}
+
+function computeIsDirty(
+  saved: RelationshipRow[],
+  local: RelationshipRow[]
+): boolean {
+  if (saved.length !== local.length) return true;
+  const savedSet = new Set(saved.map(relKey));
+  return local.some((r) => !savedSet.has(relKey(r)));
+}
 
 function layoutGraph(nodes: Node[], edges: Edge[]) {
   const g = new dagre.graphlib.Graph();
@@ -129,14 +158,28 @@ function GraphPageContent() {
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [avatars, setAvatars] = useState<AvatarMap>({});
-  const [relationships, setRelationships] = useState<RelationshipRow[]>([]);
+
+  const [savedRelationships, setSavedRelationships] = useState<
+    RelationshipRow[]
+  >([]);
+  const [localRelationships, setLocalRelationships] = useState<
+    RelationshipRow[]
+  >([]);
+
   const [addingEdge, setAddingEdge] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
-  const [extraNodes, setExtraNodes] = useState<string[]>([]);
   const queryProcessed = useRef(false);
+
+  const [navDialogOpen, setNavDialogOpen] = useState(false);
+  const pendingNavTarget = useRef<string | null>(null);
+
+  const isDirty = computeIsDirty(savedRelationships, localRelationships);
 
   const nodeTypes = useMemo(() => ({ ensNode: EnsNode }), []);
   const edgeTypes = useMemo(() => ({ deletable: DeletableEdge }), []);
+
+  // ── Avatar fetching ──
 
   async function fetchAvatar(name: string): Promise<string | null> {
     try {
@@ -167,23 +210,24 @@ function GraphPageContent() {
     return merged;
   }
 
+  // ── Graph rendering ──
+
   const buildGraph = useCallback(
-    (
-      rels: RelationshipRow[],
-      avatarMap: AvatarMap,
-      floatingNames: string[] = []
-    ) => {
+    (rels: RelationshipRow[], avatarMap: AvatarMap) => {
       const uniqueNames = new Set<string>();
       rels.forEach((r) => {
         uniqueNames.add(r.fromEns);
         uniqueNames.add(r.toEns);
       });
-      floatingNames.forEach((n) => uniqueNames.add(n));
 
       const rawNodes: Node[] = Array.from(uniqueNames).map((name, i) => ({
         id: name,
         type: "ensNode",
-        data: { label: name, avatar: avatarMap[name] ?? null },
+        data: {
+          label: name,
+          avatar: avatarMap[name] ?? null,
+          onNavigate: handleNodeNavigate,
+        },
         position: { x: (i % 4) * 220, y: Math.floor(i / 4) * 100 },
       }));
 
@@ -206,26 +250,25 @@ function GraphPageContent() {
     []
   );
 
-  async function loadRelationships(floating: string[] = []) {
+  // ── DB loading ──
+
+  async function loadFromDb() {
     try {
       const res = await fetch("/api/relationships");
       if (!res.ok) throw new Error("Failed to fetch");
       const data = await res.json();
       const rels = (data as { relationships: RelationshipRow[] }).relationships;
-      setRelationships(rels);
+      setSavedRelationships(rels);
+      setLocalRelationships(rels);
 
       const allNames = new Set<string>();
       rels.forEach((r) => {
         allNames.add(r.fromEns);
         allNames.add(r.toEns);
       });
-      floating.forEach((n) => allNames.add(n));
 
-      const avatarMap = await fetchAvatars(
-        Array.from(allNames),
-        avatars
-      );
-      buildGraph(rels, avatarMap, floating);
+      const avatarMap = await fetchAvatars(Array.from(allNames), avatars);
+      buildGraph(rels, avatarMap);
     } catch {
       toast.error("Failed to load relationships");
     } finally {
@@ -233,9 +276,22 @@ function GraphPageContent() {
     }
   }
 
+  // ── Homepage seed flow (writes directly to DB) ──
+
+  function generatePairs(names: string[]): [string, string][] {
+    const pairs: [string, string][] = [];
+    for (let i = 0; i < names.length; i++) {
+      for (let j = i + 1; j < names.length; j++) {
+        const [a, b] = [names[i], names[j]].sort();
+        pairs.push([a, b]);
+      }
+    }
+    return pairs;
+  }
+
   async function seedFromQueryParam(names: string[]) {
     if (names.length < 2) {
-      await loadRelationships(names);
+      await loadFromDb();
       return;
     }
 
@@ -266,9 +322,10 @@ function GraphPageContent() {
       toast.success(`${addedCount} connection(s) created`);
     }
 
-    setExtraNodes([]);
-    await loadRelationships();
+    await loadFromDb();
   }
+
+  // ── Mount ──
 
   useEffect(() => {
     const namesParam = searchParams.get("names");
@@ -283,180 +340,232 @@ function GraphPageContent() {
       router.replace("/graph");
 
       if (seedNames.length > 0) {
-        setExtraNodes(seedNames);
         seedFromQueryParam(seedNames);
       } else {
-        loadRelationships();
+        loadFromDb();
       }
     } else {
-      loadRelationships();
+      loadFromDb();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function generatePairs(names: string[]): [string, string][] {
-    const pairs: [string, string][] = [];
-    for (let i = 0; i < names.length; i++) {
-      for (let j = i + 1; j < names.length; j++) {
-        const [a, b] = [names[i], names[j]].sort();
-        pairs.push([a, b]);
+  // ── Rebuild graph whenever localRelationships or avatars change ──
+
+  useEffect(() => {
+    if (!initialLoading) {
+      buildGraph(localRelationships, avatars);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [localRelationships, avatars, initialLoading]);
+
+  // ── Browser beforeunload guard ──
+
+  useEffect(() => {
+    function handleBeforeUnload(e: BeforeUnloadEvent) {
+      if (computeIsDirty(savedRelationships, localRelationships)) {
+        e.preventDefault();
       }
     }
-    return pairs;
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [savedRelationships, localRelationships]);
+
+  // ── Navigation guard ──
+
+  function handleNodeNavigate(ensName: string) {
+    if (isDirty) {
+      pendingNavTarget.current = `/profile/${ensName}`;
+      setNavDialogOpen(true);
+    } else {
+      router.push(`/profile/${ensName}`);
+    }
   }
+
+  function handleBack() {
+    if (isDirty) {
+      pendingNavTarget.current = "__back__";
+      setNavDialogOpen(true);
+    } else {
+      if (window.history.length <= 1) {
+        router.push("/");
+      } else {
+        router.back();
+      }
+    }
+  }
+
+  function confirmNavigation() {
+    setNavDialogOpen(false);
+    setLocalRelationships(savedRelationships);
+    const target = pendingNavTarget.current;
+    pendingNavTarget.current = null;
+
+    if (target === "__back__") {
+      if (window.history.length <= 1) {
+        router.push("/");
+      } else {
+        router.back();
+      }
+    } else if (target) {
+      router.push(target);
+    }
+  }
+
+  function cancelNavigation() {
+    setNavDialogOpen(false);
+    pendingNavTarget.current = null;
+  }
+
+  // ── Local state mutations ──
 
   function getExistingNodeNames(): string[] {
     const names = new Set<string>();
-    relationships.forEach((r) => {
+    localRelationships.forEach((r) => {
       names.add(r.fromEns);
       names.add(r.toEns);
     });
-    extraNodes.forEach((n) => names.add(n));
     return Array.from(names);
+  }
+
+  function addLocalRelationship(fromEns: string, toEns: string) {
+    const [a, b] = [fromEns, toEns].sort();
+    const exists = localRelationships.some(
+      (r) => relKey(r) === `${a}:${b}`
+    );
+    if (exists) return false;
+
+    const newRel: RelationshipRow = {
+      id: `local-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      fromEns: a,
+      toEns: b,
+      createdAt: new Date().toISOString(),
+    };
+    setLocalRelationships((prev) => [...prev, newRel]);
+    return true;
   }
 
   async function handleAddNames(names: string[]) {
     const existingNames = getExistingNodeNames();
 
-    const duplicateNames = names.filter((n) => existingNames.includes(n));
     const newNames = names.filter((n) => !existingNames.includes(n));
+    const duplicateNames = names.filter((n) => existingNames.includes(n));
 
-    if (duplicateNames.length > 0 && newNames.length === 0 && names.length < 2) {
+    if (names.length === 1 && duplicateNames.length === 1) {
       toast.info(`${duplicateNames[0]} is already in the graph`);
       return;
     }
 
-    const allNamesForPairing = [...newNames, ...existingNames];
-
-    if (newNames.length === 0 && names.length < 2) {
-      toast.info(`${names[0]} is already in the graph`);
-      return;
-    }
-
-    if (newNames.length === 0 && names.length >= 2) {
-      const pairs = generatePairs(names);
-      if (pairs.length === 0) return;
-      setAddingEdge(true);
-      let addedCount = 0;
-      let skippedCount = 0;
-
-      const results = await Promise.allSettled(
-        pairs.map(async ([fromEns, toEns]) => {
-          const res = await fetch("/api/relationships", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ fromEns, toEns }),
-          });
-          if (res.status === 409) { skippedCount++; return "duplicate"; }
-          if (!res.ok) throw new Error("Failed to add edge");
-          addedCount++;
-          return "added";
-        })
-      );
-      const failures = results.filter((r) => r.status === "rejected");
-      if (failures.length > 0) toast.error(`${failures.length} connection(s) failed`);
-      if (addedCount === 0 && skippedCount === pairs.length) toast.info("All connections already exist");
-      else if (addedCount > 0) toast.success(`${addedCount} connection(s) added`);
-      setExtraNodes([]);
-      await loadRelationships();
-      setAddingEdge(false);
-      return;
-    }
-
-    if (newNames.length === 1 && existingNames.length === 0 && names.length === 1) {
+    if (names.length === 1 && existingNames.length === 0) {
       toast.warning("Enter at least 2 names to create a connection");
       return;
     }
 
     setAddingEdge(true);
 
+    const allNames = [...new Set([...newNames, ...existingNames])];
+    const newAvatarNames = newNames.filter((n) => avatars[n] === undefined);
+    if (newAvatarNames.length > 0) {
+      await fetchAvatars(newAvatarNames, avatars);
+    }
+
     const pairs: [string, string][] = [];
-    for (const newName of newNames) {
-      for (const existing of existingNames) {
-        const [a, b] = [newName, existing].sort();
-        pairs.push([a, b]);
+    for (const nn of newNames) {
+      for (const en of existingNames) {
+        pairs.push([nn, en]);
       }
     }
-    const newNamePairs = generatePairs(newNames);
-    pairs.push(...newNamePairs);
+    pairs.push(...generatePairs(newNames));
 
-    if (pairs.length === 0) {
-      setAddingEdge(false);
-      return;
+    if (duplicateNames.length > 0 && newNames.length === 0 && names.length >= 2) {
+      const extraPairs = generatePairs(names);
+      pairs.push(...extraPairs);
     }
 
     let addedCount = 0;
-    let skippedCount = 0;
-
-    try {
-      const results = await Promise.allSettled(
-        pairs.map(async ([fromEns, toEns]) => {
-          const res = await fetch("/api/relationships", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ fromEns, toEns }),
-          });
-
-          if (res.status === 409) {
-            skippedCount++;
-            return "duplicate";
-          }
-
-          if (!res.ok) throw new Error("Failed to add edge");
-          addedCount++;
-          return "added";
-        })
-      );
-
-      const failures = results.filter((r) => r.status === "rejected");
-      if (failures.length > 0) {
-        toast.error(`${failures.length} connection(s) failed to create`);
-      }
-
-      if (addedCount === 0 && skippedCount === pairs.length) {
-        toast.info("All connections already exist");
-      } else if (addedCount > 0) {
-        toast.success(`${addedCount} connection(s) added`);
-      }
-
-      setExtraNodes([]);
-      await loadRelationships();
-    } catch {
-      toast.error("Failed to create connections");
-    } finally {
-      setAddingEdge(false);
+    for (const [a, b] of pairs) {
+      if (addLocalRelationship(a, b)) addedCount++;
     }
+
+    if (addedCount === 0) {
+      toast.info("All connections already exist");
+    } else {
+      toast.success(`${addedCount} connection(s) added locally — save to persist`);
+    }
+
+    setAddingEdge(false);
   }
 
-  async function handleDeleteEdge(fromEns: string, toEns: string) {
-    const prevRelationships = [...relationships];
-    const prevExtra = [...extraNodes];
-    const nextRelationships = relationships.filter(
-      (r) => !(r.fromEns === fromEns && r.toEns === toEns)
+  function handleDeleteEdge(fromEns: string, toEns: string) {
+    setLocalRelationships((prev) =>
+      prev.filter((r) => relKey(r) !== relKey({ fromEns, toEns }))
     );
-    setRelationships(nextRelationships);
-    buildGraph(nextRelationships, avatars, extraNodes);
-
-    try {
-      const res = await fetch("/api/relationships", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fromEns, toEns }),
-      });
-
-      if (!res.ok) {
-        throw new Error("Failed to delete edge");
-      }
-
-      toast.success(`Edge removed: ${fromEns} → ${toEns}`);
-    } catch {
-      toast.error("Failed to delete edge");
-      setRelationships(prevRelationships);
-      buildGraph(prevRelationships, avatars, prevExtra);
-    }
   }
 
-  const hasContent = relationships.length > 0 || extraNodes.length > 0;
+  // ── Save / Discard ──
+
+  async function handleSave() {
+    if (!isDirty || saving) return;
+    setSaving(true);
+
+    const savedSet = new Set(savedRelationships.map(relKey));
+    const localSet = new Set(localRelationships.map(relKey));
+
+    const toAdd = localRelationships.filter((r) => !savedSet.has(relKey(r)));
+    const toRemove = savedRelationships.filter((r) => !localSet.has(relKey(r)));
+
+    let failed = false;
+
+    const addResults = await Promise.allSettled(
+      toAdd.map(async (r) => {
+        const res = await fetch("/api/relationships", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ fromEns: r.fromEns, toEns: r.toEns }),
+        });
+        if (res.status === 409) return;
+        if (!res.ok) throw new Error("POST failed");
+      })
+    );
+
+    const deleteResults = await Promise.allSettled(
+      toRemove.map(async (r) => {
+        const res = await fetch("/api/relationships", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ fromEns: r.fromEns, toEns: r.toEns }),
+        });
+        if (!res.ok) throw new Error("DELETE failed");
+      })
+    );
+
+    const addFailures = addResults.filter((r) => r.status === "rejected");
+    const deleteFailures = deleteResults.filter(
+      (r) => r.status === "rejected"
+    );
+
+    if (addFailures.length > 0 || deleteFailures.length > 0) {
+      failed = true;
+      toast.error(
+        "Some changes couldn't be saved. Please try again."
+      );
+    }
+
+    if (!failed) {
+      toast.success("Changes saved");
+    }
+
+    await loadFromDb();
+    setSaving(false);
+  }
+
+  function handleDiscard() {
+    setLocalRelationships(savedRelationships);
+  }
+
+  // ── Render ──
+
+  const hasContent = localRelationships.length > 0;
 
   if (initialLoading) {
     return (
@@ -473,13 +582,7 @@ function GraphPageContent() {
           variant="ghost"
           size="icon"
           className="shrink-0"
-          onClick={() => {
-            if (window.history.length <= 1) {
-              router.push("/");
-            } else {
-              router.back();
-            }
-          }}
+          onClick={handleBack}
         >
           <IconArrowLeft size={18} stroke={1.5} />
         </Button>
@@ -499,7 +602,7 @@ function GraphPageContent() {
           </p>
         </div>
       ) : (
-        <div className="flex-1">
+        <div className="relative flex-1">
           <ReactFlow
             nodes={nodes}
             edges={edges}
@@ -510,8 +613,69 @@ function GraphPageContent() {
             fitView
             proOptions={{ hideAttribution: true }}
           />
+
+          {/* Save/Discard floating bar */}
+          <div
+            className={`absolute bottom-6 left-1/2 -translate-x-1/2 z-50 transition-all duration-300 ${
+              isDirty
+                ? "opacity-100 translate-y-0"
+                : "opacity-0 translate-y-4 pointer-events-none"
+            }`}
+          >
+            <div className="flex items-center gap-4 rounded-lg border bg-card px-4 py-3 shadow-lg">
+              <span className="text-sm text-muted-foreground whitespace-nowrap">
+                You have unsaved changes
+              </span>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleDiscard}
+                  disabled={saving}
+                >
+                  <IconX size={16} stroke={1.5} />
+                  Discard
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={handleSave}
+                  disabled={saving}
+                >
+                  {saving ? (
+                    <IconLoader2 size={16} stroke={1.5} className="animate-spin" />
+                  ) : (
+                    <IconDeviceFloppy size={16} stroke={1.5} />
+                  )}
+                  {saving ? "Saving..." : "Save"}
+                </Button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
+
+      {/* Navigation guard dialog */}
+      <AlertDialog open={navDialogOpen} onOpenChange={setNavDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Unsaved changes</AlertDialogTitle>
+            <AlertDialogDescription>
+              You have unsaved changes to your graph. What would you like to do?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={cancelNavigation}>
+              Go back &amp; Save
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmNavigation}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Discard &amp; Leave
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

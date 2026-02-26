@@ -7,26 +7,35 @@ import { Card } from "@/components/ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { IconUser } from "@tabler/icons-react";
 
-type EnsNodeData = {
-  label: string;
-  avatar: string | null;
-};
-
 function getInitials(name: string): string {
   const base = name.replace(/\.eth$/, "");
   if (base.length === 0) return "";
   return base.slice(0, 2).toUpperCase();
 }
 
+type EnsNodeData = {
+  label: string;
+  avatar: string | null;
+  onNavigate?: (ensName: string) => void;
+};
+
 function EnsNodeComponent({ data }: NodeProps) {
   const router = useRouter();
-  const { label, avatar } = data as EnsNodeData;
+  const { label, avatar, onNavigate } = data as EnsNodeData;
   const initials = getInitials(label as string);
+
+  function handleClick() {
+    if (onNavigate) {
+      onNavigate(label as string);
+    } else {
+      router.push(`/profile/${label}`);
+    }
+  }
 
   return (
     <Card
       className="cursor-pointer px-3 py-2 hover:shadow-md transition-shadow"
-      onClick={() => router.push(`/profile/${label}`)}
+      onClick={handleClick}
     >
       <Handle type="target" position={Position.Left} className="bg-gray-400!" />
       <div className="flex items-center gap-2">
