@@ -106,11 +106,13 @@ export default function Home() {
               placeholder="One name for profile, multiple for graph (e.g. vitalik.eth, balajis.eth)"
               className="flex-1"
             />
-            <Button type="submit" disabled={validating}>
+            <Button type="submit" disabled={validating} className="min-w-[160px]">
               {validating ? (
                 <IconLoader2 size={16} stroke={1.5} className="animate-spin" />
+              ) : parseEnsInput(ensInput).length >= 2 ? (
+                "Generate Graph"
               ) : (
-                "Go"
+                "View ENS Profile"
               )}
             </Button>
           </div>
