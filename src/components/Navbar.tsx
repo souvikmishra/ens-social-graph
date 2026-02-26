@@ -7,15 +7,7 @@ export function Navbar() {
       <Link href="/" className="text-lg font-bold tracking-tight">
         ENS Social Graph
       </Link>
-      <div className="flex items-center gap-2">
-        <Link
-          href="/graph"
-          className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-        >
-          Graph
-        </Link>
-        <ThemeSwitcher />
-      </div>
+      <ThemeSwitcher />
     </nav>
   );
 }
