@@ -22,6 +22,8 @@ import {
   EdgeLabelRenderer,
   getBezierPath,
   BaseEdge,
+  Background,
+  BackgroundVariant,
   type Edge,
   type Node,
   type EdgeProps,
@@ -612,7 +614,15 @@ function GraphPageContent() {
             edgeTypes={edgeTypes}
             fitView
             proOptions={{ hideAttribution: true }}
-          />
+          >
+            <Background
+              variant={BackgroundVariant.Dots}
+              gap={24}
+              size={1}
+              color="var(--border)"
+              className="opacity-60"
+            />
+          </ReactFlow>
 
           {/* Save/Discard floating bar */}
           <div
