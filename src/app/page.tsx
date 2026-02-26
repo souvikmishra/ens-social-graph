@@ -31,10 +31,12 @@ function isValidEnsFormat(name: string): boolean {
 }
 
 const formSchema = z.object({
-  ensInput: z.string().refine(
-    (val) => val.trim().length > 0,
-    "Please enter at least one ENS name"
-  ),
+  ensInput: z
+    .string()
+    .refine(
+      (val) => val.trim().length > 0,
+      "Please enter at least one ENS name"
+    ),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -115,76 +117,76 @@ export default function Home() {
 
   return (
     <>
-    <div className="flex flex-1 flex-col items-center justify-center px-4">
-      <div className="w-full max-w-md space-y-8 text-center">
-        <div className="space-y-2">
-          <h1 className="text-4xl font-bold tracking-tight">
-            ENS Social Graph
-          </h1>
-          <p className="text-muted-foreground">
-            Explore ENS profiles and visualize connections
-          </p>
-        </div>
+      <div className="flex flex-1 flex-col items-center justify-center px-4">
+        <div className="w-full max-w-md space-y-8 text-center">
+          <div className="space-y-2">
+            <h1 className="text-4xl font-bold tracking-tight">
+              ENS Social Graph
+            </h1>
+            <p className="text-muted-foreground">
+              Explore ENS profiles and visualize connections
+            </p>
+          </div>
 
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-2">
-            <FormField
-              control={form.control}
-              name="ensInput"
-              render={({ field }) => (
-                <FormItem>
-                  <div className="flex gap-2">
-                    <FormControl>
-                      <Input
-                        placeholder="vitalik.eth or vitalik.eth, balajis.eth"
-                        className="flex-1"
-                        {...field}
-                        onChange={(e) => {
-                          field.onChange(e);
-                          if (form.formState.errors.ensInput) {
-                            form.clearErrors("ensInput");
-                          }
-                        }}
-                      />
-                    </FormControl>
-                    <Button
-                      type="submit"
-                      disabled={validating}
-                      className="min-w-[160px]"
-                    >
-                      {validating ? (
-                        <IconLoader2
-                          size={16}
-                          stroke={1.5}
-                          className="animate-spin"
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-2">
+              <FormField
+                control={form.control}
+                name="ensInput"
+                render={({ field }) => (
+                  <FormItem>
+                    <div className="flex gap-2">
+                      <FormControl>
+                        <Input
+                          placeholder="vitalik.eth or vitalik.eth, balajis.eth"
+                          className="flex-1"
+                          {...field}
+                          onChange={(e) => {
+                            field.onChange(e);
+                            if (form.formState.errors.ensInput) {
+                              form.clearErrors("ensInput");
+                            }
+                          }}
                         />
-                      ) : parseEnsInput(ensInputValue).length >= 2 ? (
-                        "Generate Graph"
-                      ) : (
-                        "View ENS Profile"
-                      )}
-                    </Button>
-                  </div>
-                  <FormDescription className="text-left">
-                    Enter a single name to view a profile, or multiple names
-                    separated by commas to generate a social graph.
-                  </FormDescription>
-                  <FormMessage className="text-left" />
-                </FormItem>
-              )}
-            />
-          </form>
-        </Form>
+                      </FormControl>
+                      <Button
+                        type="submit"
+                        disabled={validating}
+                        className="min-w-[160px]"
+                      >
+                        {validating ? (
+                          <IconLoader2
+                            size={16}
+                            stroke={1.5}
+                            className="animate-spin"
+                          />
+                        ) : parseEnsInput(ensInputValue).length >= 2 ? (
+                          "Generate Graph"
+                        ) : (
+                          "View ENS Profile"
+                        )}
+                      </Button>
+                    </div>
+                    <FormDescription className="text-left">
+                      Enter a single name to view a profile, or multiple names
+                      separated by commas to generate a social graph.
+                    </FormDescription>
+                    <FormMessage className="text-left" />
+                  </FormItem>
+                )}
+              />
+            </form>
+          </Form>
 
-        <Link
-          href="/graph"
-          className="inline-block text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground transition-colors"
-        >
-          Open Graph
-        </Link>
+          <Link
+            href="/graph"
+            className="inline-block text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground transition-colors"
+          >
+            Open Graph
+          </Link>
+        </div>
       </div>
-    </div>
-    <Footer />
+      <Footer />
     </>
   );
 }

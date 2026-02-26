@@ -430,9 +430,7 @@ function GraphPageContent() {
 
   function addLocalRelationship(fromEns: string, toEns: string) {
     const [a, b] = [fromEns, toEns].sort();
-    const exists = localRelationships.some(
-      (r) => relKey(r) === `${a}:${b}`
-    );
+    const exists = localRelationships.some((r) => relKey(r) === `${a}:${b}`);
     if (exists) return false;
 
     const newRel: RelationshipRow = {
@@ -463,7 +461,6 @@ function GraphPageContent() {
 
     setAddingEdge(true);
 
-    const allNames = [...new Set([...newNames, ...existingNames])];
     const newAvatarNames = newNames.filter((n) => avatars[n] === undefined);
     if (newAvatarNames.length > 0) {
       await fetchAvatars(newAvatarNames, avatars);
@@ -477,7 +474,11 @@ function GraphPageContent() {
     }
     pairs.push(...generatePairs(newNames));
 
-    if (duplicateNames.length > 0 && newNames.length === 0 && names.length >= 2) {
+    if (
+      duplicateNames.length > 0 &&
+      newNames.length === 0 &&
+      names.length >= 2
+    ) {
       const extraPairs = generatePairs(names);
       pairs.push(...extraPairs);
     }
@@ -490,7 +491,9 @@ function GraphPageContent() {
     if (addedCount === 0) {
       toast.info("All connections already exist");
     } else {
-      toast.success(`${addedCount} connection(s) added locally — save to persist`);
+      toast.success(
+        `${addedCount} connection(s) added locally — save to persist`
+      );
     }
 
     setAddingEdge(false);
@@ -540,15 +543,11 @@ function GraphPageContent() {
     );
 
     const addFailures = addResults.filter((r) => r.status === "rejected");
-    const deleteFailures = deleteResults.filter(
-      (r) => r.status === "rejected"
-    );
+    const deleteFailures = deleteResults.filter((r) => r.status === "rejected");
 
     if (addFailures.length > 0 || deleteFailures.length > 0) {
       failed = true;
-      toast.error(
-        "Some changes couldn't be saved. Please try again."
-      );
+      toast.error("Some changes couldn't be saved. Please try again.");
     }
 
     if (!failed) {
@@ -610,7 +609,17 @@ function GraphPageContent() {
             onEdgesChange={onEdgesChange}
             nodeTypes={nodeTypes}
             edgeTypes={edgeTypes}
+            snapToGrid
+            autoPanOnNodeFocus
             fitView
+            fitViewOptions={{
+              padding: 0.1,
+              includeHiddenNodes: false,
+              minZoom: 0.1,
+              maxZoom: 1,
+              duration: 200,
+              nodes: nodes,
+            }}
             proOptions={{ hideAttribution: true }}
           />
 
@@ -636,13 +645,13 @@ function GraphPageContent() {
                   <IconX size={16} stroke={1.5} />
                   Discard
                 </Button>
-                <Button
-                  size="sm"
-                  onClick={handleSave}
-                  disabled={saving}
-                >
+                <Button size="sm" onClick={handleSave} disabled={saving}>
                   {saving ? (
-                    <IconLoader2 size={16} stroke={1.5} className="animate-spin" />
+                    <IconLoader2
+                      size={16}
+                      stroke={1.5}
+                      className="animate-spin"
+                    />
                   ) : (
                     <IconDeviceFloppy size={16} stroke={1.5} />
                   )}

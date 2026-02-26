@@ -39,10 +39,10 @@ function EnsNodeComponent({ data }: NodeProps) {
     >
       <Handle type="target" position={Position.Left} className="bg-gray-400!" />
       <div className="flex items-center gap-2">
-        <Avatar className="h-8 w-8">
+        <Avatar className="h-6 w-6">
           {avatar && <AvatarImage src={avatar} alt={label as string} />}
-          <AvatarFallback className="text-xs font-bold">
-            {initials || <IconUser size={14} stroke={1.5} />}
+          <AvatarFallback className="text-xs">
+            {initials || <IconUser size={8} stroke={1.5} />}
           </AvatarFallback>
         </Avatar>
         <span className="text-sm font-medium">{label as string}</span>

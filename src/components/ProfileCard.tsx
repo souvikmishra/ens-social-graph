@@ -1,12 +1,12 @@
-'use client';
+"use client";
 
-import { useState, type ReactNode } from 'react';
-import { useRouter } from 'next/navigation';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { toast } from 'sonner';
+import { useState, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { toast } from "sonner";
 import {
   IconWorld,
   IconBrandX,
@@ -18,7 +18,7 @@ import {
   IconCheck,
   IconArrowLeft,
   IconUser,
-} from '@tabler/icons-react';
+} from "@tabler/icons-react";
 
 type EnsProfileData = {
   address: string;
@@ -37,8 +37,8 @@ function truncateAddress(address: string): string {
 }
 
 function getInitials(name: string): string {
-  const base = name.replace(/\.eth$/, '');
-  if (base.length === 0) return '';
+  const base = name.replace(/\.eth$/, "");
+  if (base.length === 0) return "";
   return base.slice(0, 2).toUpperCase();
 }
 
@@ -55,10 +55,10 @@ export function ProfileCard({
     try {
       await navigator.clipboard.writeText(profile.address);
       setCopied(true);
-      toast.success('Address copied to clipboard');
+      toast.success("Address copied to clipboard");
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      toast.error('Failed to copy address');
+      toast.error("Failed to copy address");
     }
   }
 
@@ -68,32 +68,32 @@ export function ProfileCard({
     value: string | null;
   }[] = [
     {
-      label: 'Website',
+      label: "Website",
       icon: <IconWorld size={18} stroke={1.5} />,
       value: profile.url,
     },
     {
-      label: 'Twitter',
+      label: "Twitter",
       icon: <IconBrandX size={18} stroke={1.5} />,
       value: profile.twitter,
     },
     {
-      label: 'GitHub',
+      label: "GitHub",
       icon: <IconBrandGithub size={18} stroke={1.5} />,
       value: profile.github,
     },
     {
-      label: 'Discord',
+      label: "Discord",
       icon: <IconBrandDiscord size={18} stroke={1.5} />,
       value: profile.discord,
     },
     {
-      label: 'Telegram',
+      label: "Telegram",
       icon: <IconBrandTelegram size={18} stroke={1.5} />,
       value: profile.telegram,
     },
     {
-      label: 'Email',
+      label: "Email",
       icon: <IconMail size={18} stroke={1.5} />,
       value: profile.email,
     },
@@ -160,7 +160,7 @@ export function ProfileBackButton() {
 
   function handleBack() {
     if (window.history.length <= 1) {
-      router.push('/');
+      router.push("/");
     } else {
       router.back();
     }
@@ -180,7 +180,7 @@ export function ProfileNotFound({ ensName }: { ensName: string }) {
       <div className="space-y-2">
         <h1 className="text-2xl font-bold">ENS Name Not Found</h1>
         <p className="text-muted-foreground">
-          The ENS name{' '}
+          The ENS name{" "}
           <span className="font-mono font-semibold">{ensName}</span> could not
           be resolved.
         </p>

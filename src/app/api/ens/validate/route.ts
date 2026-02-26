@@ -19,9 +19,6 @@ export async function GET(request: NextRequest) {
     const profile = await resolveEns(name);
     return NextResponse.json({ exists: profile !== null });
   } catch {
-    return NextResponse.json(
-      { error: "Resolution failed" },
-      { status: 502 }
-    );
+    return NextResponse.json({ error: "Resolution failed" }, { status: 502 });
   }
 }

@@ -40,9 +40,7 @@ export function GraphInput({
     const invalidFormat = names.filter((n) => !isValidEnsFormat(n));
     if (invalidFormat.length > 0) {
       setFormatError(
-        invalidFormat
-          .map((n) => `"${n}" is not a valid ENS format`)
-          .join(". ")
+        invalidFormat.map((n) => `"${n}" is not a valid ENS format`).join(". ")
       );
       return;
     }
