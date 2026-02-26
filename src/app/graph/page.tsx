@@ -14,8 +14,6 @@ import {
   IconX,
   IconDeviceFloppy,
   IconLoader2,
-  IconPlus,
-  IconMinus,
 } from "@tabler/icons-react";
 import {
   ReactFlow,
@@ -24,10 +22,6 @@ import {
   EdgeLabelRenderer,
   getBezierPath,
   BaseEdge,
-  Background,
-  BackgroundVariant,
-  Panel,
-  useReactFlow,
   type Edge,
   type Node,
   type EdgeProps,
@@ -141,31 +135,6 @@ function DeletableEdge({
         </button>
       </EdgeLabelRenderer>
     </>
-  );
-}
-
-function ZoomControls() {
-  const { zoomIn, zoomOut } = useReactFlow();
-
-  return (
-    <Panel position="bottom-right" className="flex flex-col gap-1 mb-2 mr-2">
-      <Button
-        variant="outline"
-        size="icon"
-        className="h-10 w-10"
-        onClick={() => zoomIn({ duration: 200 })}
-      >
-        <IconPlus size={18} stroke={1.5} />
-      </Button>
-      <Button
-        variant="outline"
-        size="icon"
-        className="h-10 w-10"
-        onClick={() => zoomOut({ duration: 200 })}
-      >
-        <IconMinus size={18} stroke={1.5} />
-      </Button>
-    </Panel>
   );
 }
 
@@ -607,7 +576,7 @@ function GraphPageContent() {
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    <div className="flex h-[calc(100vh-64px)] flex-col">
       <div className="flex items-center gap-2 border-b p-4">
         <Button
           variant="ghost"
@@ -633,7 +602,7 @@ function GraphPageContent() {
           </p>
         </div>
       ) : (
-        <div className="relative h-0 flex-1">
+        <div className="relative flex-1">
           <ReactFlow
             nodes={nodes}
             edges={edges}
@@ -643,16 +612,7 @@ function GraphPageContent() {
             edgeTypes={edgeTypes}
             fitView
             proOptions={{ hideAttribution: true }}
-          >
-            <Background
-              variant={BackgroundVariant.Dots}
-              gap={24}
-              size={1}
-              color="var(--border)"
-              className="opacity-60"
-            />
-            <ZoomControls />
-          </ReactFlow>
+          />
 
           {/* Save/Discard floating bar */}
           <div
