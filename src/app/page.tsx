@@ -6,15 +6,26 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
+function parseEnsInput(raw: string): string[] {
+  return raw
+    .split(",")
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+}
+
 export default function Home() {
   const router = useRouter();
-  const [ensName, setEnsName] = useState("");
+  const [ensInput, setEnsInput] = useState("");
 
   function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    const trimmed = ensName.trim();
-    if (trimmed) {
-      router.push(`/profile/${trimmed}`);
+    const names = parseEnsInput(ensInput);
+    if (names.length === 0) return;
+
+    if (names.length === 1) {
+      router.push(`/profile/${names[0]}`);
+    } else {
+      router.push(`/graph?names=${names.join(",")}`);
     }
   }
 
@@ -32,12 +43,12 @@ export default function Home() {
 
         <form onSubmit={handleSubmit} className="flex gap-2">
           <Input
-            value={ensName}
-            onChange={(e) => setEnsName(e.target.value)}
-            placeholder="Enter ENS name (e.g. vitalik.eth)"
+            value={ensInput}
+            onChange={(e) => setEnsInput(e.target.value)}
+            placeholder="One name for profile, multiple for graph (e.g. vitalik.eth, balajis.eth)"
             className="flex-1"
           />
-          <Button type="submit">View Profile</Button>
+          <Button type="submit">Go</Button>
         </form>
 
         <Link
