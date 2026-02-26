@@ -21,6 +21,10 @@ const client = createPublicClient({
   transport: http(process.env.ALCHEMY_RPC_URL || FALLBACK_RPC),
 });
 
+export function isValidEnsFormat(name: string): boolean {
+  return name.endsWith(".eth") && name.length > 4 && !name.includes(" ");
+}
+
 const TEXT_RECORD_KEYS = [
   "avatar",
   "description",
