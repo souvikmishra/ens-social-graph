@@ -1,0 +1,33 @@
+import { resolveEns } from "@/lib/ens";
+import { ProfileCard, ProfileNotFound } from "@/components/ProfileCard";
+
+type Props = {
+  params: Promise<{ ens: string }>;
+};
+
+export async function generateMetadata({ params }: Props) {
+  const { ens } = await params;
+  return { title: `${decodeURIComponent(ens)} — ENS Social Graph` };
+}
+
+export default async function ProfilePage({ params }: Props) {
+  const { ens } = await params;
+  const ensName = decodeURIComponent(ens);
+
+  let profile;
+  try {
+    profile = await resolveEns(ensName);
+  } catch {
+    profile = null;
+  }
+
+  if (!profile) {
+    return <ProfileNotFound ensName={ensName} />;
+  }
+
+  return (
+    <div className="flex min-h-[80vh] items-center justify-center px-4 py-8">
+      <ProfileCard ensName={ensName} profile={profile} />
+    </div>
+  );
+}
