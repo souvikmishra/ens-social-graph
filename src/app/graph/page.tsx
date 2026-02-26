@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { IconArrowLeft } from "@tabler/icons-react";
 import {
   ReactFlow,
   useNodesState,
@@ -16,6 +17,7 @@ import {
 import "@xyflow/react/dist/style.css";
 import dagre from "dagre";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
 import { EnsNode } from "@/components/EnsNode";
 import { GraphInput } from "@/components/GraphInput";
 
@@ -339,8 +341,24 @@ export default function GraphPage() {
 
   return (
     <div className="flex h-[calc(100vh-64px)] flex-col">
-      <div className="border-b p-4">
-        <GraphInput onAddNames={handleAddNames} loading={addingEdge} />
+      <div className="flex items-center gap-2 border-b p-4">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="shrink-0"
+          onClick={() => {
+            if (window.history.length <= 1) {
+              router.push("/");
+            } else {
+              router.back();
+            }
+          }}
+        >
+          <IconArrowLeft size={18} stroke={1.5} />
+        </Button>
+        <div className="flex-1">
+          <GraphInput onAddNames={handleAddNames} loading={addingEdge} />
+        </div>
       </div>
 
       {!hasContent ? (
