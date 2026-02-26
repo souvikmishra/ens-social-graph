@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import {
   Card,
   CardContent,
@@ -9,6 +9,17 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
+import {
+  IconWorld,
+  IconBrandX,
+  IconBrandGithub,
+  IconBrandDiscord,
+  IconBrandTelegram,
+  IconMail,
+  IconCopy,
+  IconCheck,
+  IconArrowLeft,
+} from "@tabler/icons-react";
 
 type EnsProfileData = {
   address: string;
@@ -27,7 +38,8 @@ function truncateAddress(address: string): string {
 }
 
 function getInitials(name: string): string {
-  return name.replace(".eth", "").slice(0, 2).toUpperCase();
+  const base = name.replace(".eth", "");
+  return base.slice(0, 2).toUpperCase();
 }
 
 export function ProfileCard({
@@ -50,13 +62,13 @@ export function ProfileCard({
     }
   }
 
-  const socialLinks: { label: string; icon: string; value: string | null }[] = [
-    { label: "Website", icon: "🌐", value: profile.url },
-    { label: "Twitter", icon: "🐦", value: profile.twitter },
-    { label: "GitHub", icon: "🐙", value: profile.github },
-    { label: "Discord", icon: "💬", value: profile.discord },
-    { label: "Telegram", icon: "✈️", value: profile.telegram },
-    { label: "Email", icon: "📧", value: profile.email },
+  const socialLinks: { label: string; icon: ReactNode; value: string | null }[] = [
+    { label: "Website", icon: <IconWorld size={18} stroke={1.5} />, value: profile.url },
+    { label: "Twitter", icon: <IconBrandX size={18} stroke={1.5} />, value: profile.twitter },
+    { label: "GitHub", icon: <IconBrandGithub size={18} stroke={1.5} />, value: profile.github },
+    { label: "Discord", icon: <IconBrandDiscord size={18} stroke={1.5} />, value: profile.discord },
+    { label: "Telegram", icon: <IconBrandTelegram size={18} stroke={1.5} />, value: profile.telegram },
+    { label: "Email", icon: <IconMail size={18} stroke={1.5} />, value: profile.email },
   ];
 
   const populatedLinks = socialLinks.filter((link) => link.value);
@@ -82,7 +94,11 @@ export function ProfileCard({
               {truncateAddress(profile.address)}
             </Badge>
             <Button variant="ghost" size="sm" onClick={copyAddress}>
-              {copied ? "✓" : "📋"}
+              {copied ? (
+                <IconCheck size={18} stroke={1.5} />
+              ) : (
+                <IconCopy size={18} stroke={1.5} />
+              )}
             </Button>
           </div>
         </div>
@@ -99,7 +115,7 @@ export function ProfileCard({
                 key={link.label}
                 className="flex items-center gap-3 text-sm"
               >
-                <span>{link.icon}</span>
+                <span className="text-muted-foreground">{link.icon}</span>
                 <span className="font-medium text-muted-foreground">
                   {link.label}
                 </span>
@@ -124,7 +140,10 @@ export function ProfileNotFound({ ensName }: { ensName: string }) {
         </p>
       </div>
       <Button variant="outline" asChild>
-        <a href="/">← Back to Search</a>
+        <a href="/">
+          <IconArrowLeft size={18} stroke={1.5} />
+          Back to Search
+        </a>
       </Button>
     </div>
   );

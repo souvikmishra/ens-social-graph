@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { IconArrowLeft } from "@tabler/icons-react";
+import { IconArrowLeft, IconX } from "@tabler/icons-react";
 import {
   ReactFlow,
   useNodesState,
@@ -86,7 +86,7 @@ function DeletableEdge({
       <BaseEdge id={id} path={edgePath} />
       <EdgeLabelRenderer>
         <button
-          className="nodrag nopan pointer-events-auto absolute flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] text-white hover:bg-red-600 transition-colors"
+          className="nodrag nopan pointer-events-auto absolute flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-white hover:bg-red-600 transition-colors"
           style={{
             transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)`,
           }}
@@ -95,7 +95,7 @@ function DeletableEdge({
             onDelete?.();
           }}
         >
-          ✕
+          <IconX size={12} stroke={2} />
         </button>
       </EdgeLabelRenderer>
     </>
